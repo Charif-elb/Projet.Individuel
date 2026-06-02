@@ -1,0 +1,61 @@
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ILI9341.h>
+#define TFT_CS 15
+#define TFT_DC 2
+#define TFT_RST 4
+
+#define BTN_RIGHT 27
+#define BTN_LEFT  25
+#define BTN_UP    33
+#define BTN_DOWN  26
+#define BUZZER    17
+
+Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+
+// === ETATS ===
+enum State { MENU, SETTINGS, GAME, WIN };
+State state = MENU;
+
+bool soundOn = true;
+
+// === MAP (TON NIVEAU, INCHANGÉ) ===
+#define COLS 16
+#define ROWS 10
+
+#define VIDE 0
+#define MUR 1
+#define FLAG 2
+#define SOL 3
+
+const uint8_t niveau1[ROWS][COLS] = {
+  {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3},
+  {3,0,0,0,0,0,1,0,0,0,0,0,0,0,0,3},
+  {3,0,1,0,0,0,1,0,0,1,1,0,0,0,0,3},
+  {3,0,1,0,0,0,0,0,0,0,1,0,0,0,0,3},
+  {3,0,0,0,0,0,0,0,0,0,1,0,0,0,2,3},
+  {3,0,0,0,1,1,0,0,0,0,0,0,0,0,0,3},
+  {3,0,0,0,0,1,0,0,1,1,0,0,0,0,0,3},
+  {3,0,0,0,0,0,0,0,0,1,0,0,0,0,0,3},
+  {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3},
+  {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3},
+};
+
+int playerCol = 1;
+int playerRow = 8;
+int steps = 0;
+
+void beepStep(){ if(soundOn) tone(BUZZER,900,40); }
+void beepBlock(){ if(soundOn) tone(BUZZER,200,80); }
+
+void beepWin(){
+  if(!soundOn) return;
+  int m[] = {523,659,784,1047,784,1047};
+  for(int i=0;i<6;i++){ tone(BUZZER,m[i],120); delay(150); }
+  noTone(BUZZER);
+}
+
+void beepToggle(){
+  if(soundOn) tone(BUZZER,1500,100);
+  else tone(BUZZER,300,100);
+}
