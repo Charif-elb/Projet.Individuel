@@ -2,7 +2,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 
-// 1. DEFINITIONS DES PINS
+// DEFINITIONS DES PINS
 #define TFT_CS 15
 #define TFT_DC 2
 #define TFT_RST 4
@@ -15,7 +15,7 @@
 
 Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
 
-// 2. LES VARIABLES GLOBALES
+// LES VARIABLES GLOBALES
 enum State { MENU, SETTINGS, GAME, WIN, GAMEOVER };
 State state = MENU;
 
