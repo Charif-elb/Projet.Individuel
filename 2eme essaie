@@ -2,7 +2,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 
-// DEFINITIONS DES PINS
+// 1. DEFINITIONS DES PINS
 #define TFT_CS 15
 #define TFT_DC 2
 #define TFT_RST 4
@@ -15,7 +15,7 @@
 
 Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
 
-// LES VARIABLES GLOBALES
+// 2. LES VARIABLES GLOBALES
 enum State { MENU, SETTINGS, GAME, WIN, GAMEOVER };
 State state = MENU;
 
@@ -36,7 +36,7 @@ int choiceSelection = 0;
 #define CELL 20
 #define HUD_H 40
 
-// NIVEAU 1 
+//NIVEAU 1 
 const uint8_t niveau1[ROWS][COLS] = {
  {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3},
  {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3},
@@ -50,15 +50,13 @@ const uint8_t niveau1[ROWS][COLS] = {
  {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3}
 };
 
-// ==========================================
-// CRECENDO - NIVEAU 2 : Un peu plus de murs, 1 MONSTRE STATIQUE qui bloque un passage
-// ==========================================
+// NIVEAU 2 
 uint8_t niveau2[ROWS][COLS] = {
  {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3},
  {3,0,0,0,0,0,0,1,0,0,0,0,0,0,0,3},
  {3,0,1,1,1,0,0,1,0,1,1,1,1,1,0,3},
  {3,0,1,0,0,0,0,0,0,0,0,0,0,1,0,3}, 
- {3,0,1,0,1,1,1,1,1,1,1,4,0,1,2,3}, // Le monstre '4' fait le gardien juste devant le drapeau '2'
+ {3,0,1,0,1,1,1,1,1,1,1,4,0,1,2,3}, 
  {3,0,0,0,1,0,0,0,0,0,0,0,0,1,3,3}, 
  {3,1,1,0,1,0,1,1,1,1,1,1,0,1,0,3},
  {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3},
@@ -66,7 +64,7 @@ uint8_t niveau2[ROWS][COLS] = {
  {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3}
 };
 
-//NIVEAU 3 
+//NIVEAU 3
 uint8_t niveau3[ROWS][COLS] = {
  {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3},
  {3,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3},
@@ -75,13 +73,13 @@ uint8_t niveau3[ROWS][COLS] = {
  {3,0,0,0,0,0,1,0,0,0,0,0,0,0,0,3}, 
  {3,0,0,0,1,0,0,0,1,0,1,0,0,0,0,3},
  {3,1,0,0,1,0,0,0,1,0,1,0,0,1,1,3},
- {3,0,0,0,0,0,1,0,0,0,0,0,0,2,3,3}, 
+ {3,0,0,0,0,0,1,0,0,0,0,0,0,2,3,3},
  {3,0,1,0,0,0,0,0,1,0,0,0,0,0,0,3},
  {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3}
 };
 
 struct Monstre { int row; int col; };
-Monstre monstres[2];
+Monstre monstres[2]; //pour le niveau 3
 
 int playerCol = 1; int playerRow = 8; int steps = 0;
 
@@ -141,7 +139,7 @@ void setCell(int r, int c, uint8_t val){
 }
 
 void updateMonsters() {
- if(level != 3) return; // Seul le niveau 3 possède des monstres en mouvement
+ if(level != 3) return;
  int dRow[] = {-1, 1, 0, 0}; int dCol[] = {0, 0, -1, 1};
 
  for(int i = 0; i < 2; i++) { 
@@ -353,7 +351,7 @@ void loop(){
       if(dest!=MUR && dest!=SOL){
         drawCell(playerCol,playerRow); playerCol=nc; playerRow=nr; steps++;
         
-        // Les monstres du niveau 3 se déplacent de manière équilibrée (tous les 2 pas)
+        // deplacement monstres niveau 3
         if(level == 3 && steps % 2 == 0) updateMonsters();
 
         if(state == GAME && getCell(playerRow, playerCol) == MONSTER) {
