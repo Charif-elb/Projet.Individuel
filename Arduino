@@ -2,7 +2,9 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 
-// 1. DEFINITIONS DES PINS
+//  DEFINITIONS DES PINS (écran + boutons + buzzer)
+
+
 #define TFT_CS 15
 #define TFT_DC 2
 #define TFT_RST 4
@@ -13,17 +15,26 @@
 #define BTN_DOWN 26
 #define BUZZER 17
 
+
+// Création de l'objet écran TFT
+
 Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
 
-// 2. LES VARIABLES GLOBALES
-enum State { MENU, SETTINGS, GAME, WIN, GAMEOVER };
-State state = MENU;
 
-bool soundOn = true;
-int level = 1;
-int vies = 3; 
-int menuSelection = 0; 
-int choiceSelection = 0; 
+
+// VARIABLES GLOBALES (états du jeu + paramètres)
+
+enum State { MENU, SETTINGS, GAME, WIN, GAMEOVER }; // différents états du jeu
+State state = MENU; // état initial
+
+bool soundOn = true;   // son activé/désactivé
+int level = 1;         // niveau courant
+int vies = 3;          // nombre de vies
+int menuSelection = 0; // choix dans le menu principal
+int choiceSelection = 0; // choix dans écran fin (win/gameover)
+
+
+// Types de cases
 
 #define VIDE 0
 #define MUR 1
@@ -31,340 +42,327 @@ int choiceSelection = 0;
 #define SOL 3
 #define MONSTER 4
 
+// Dimensions du jeu
 #define COLS 16
 #define ROWS 10
 #define CELL 20
-#define HUD_H 40
+#define HUD_H 40 // hauteur du HUD (barre du haut)
 
-//NIVEAU 1 
+
+// NIVEAUX (cartes du jeu)
+
+// Niveau 1 (fixe)
 const uint8_t niveau1[ROWS][COLS] = {
- {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3},
- {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3},
- {3,0,1,1,1,1,1,0,0,1,1,1,1,1,0,3},
- {3,0,1,0,0,0,0,0,0,0,0,0,0,1,0,3},
- {3,0,1,0,0,0,0,0,0,0,0,0,0,1,2,3}, 
- {3,0,1,0,0,0,0,0,0,0,0,0,0,1,3,3},
- {3,0,1,1,1,1,1,0,0,1,1,1,1,1,0,3},
- {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3},
- {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3},
- {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3}
+ ...
 };
 
-// NIVEAU 2 
+
+// Niveau 2 (modifiable → présence monstre)
 uint8_t niveau2[ROWS][COLS] = {
- {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3},
- {3,0,0,0,0,0,0,1,0,0,0,0,0,0,0,3},
- {3,0,1,1,1,0,0,1,0,1,1,1,1,1,0,3},
- {3,0,1,0,0,0,0,0,0,0,0,0,0,1,0,3}, 
- {3,0,1,0,1,1,1,1,1,1,1,4,0,1,2,3}, 
- {3,0,0,0,1,0,0,0,0,0,0,0,0,1,3,3}, 
- {3,1,1,0,1,0,1,1,1,1,1,1,0,1,0,3},
- {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3},
- {3,0,1,1,1,1,1,1,0,0,0,0,0,0,0,3},
- {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3}
+ ...
 };
 
-//NIVEAU 3
+// Niveau 3 (avec monstres dynamiques)
 uint8_t niveau3[ROWS][COLS] = {
- {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3},
- {3,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3},
- {3,0,1,1,0,0,0,0,0,0,1,1,0,1,0,3}, 
- {3,0,1,0,0,0,1,0,0,0,0,0,0,1,0,3}, 
- {3,0,0,0,0,0,1,0,0,0,0,0,0,0,0,3}, 
- {3,0,0,0,1,0,0,0,1,0,1,0,0,0,0,3},
- {3,1,0,0,1,0,0,0,1,0,1,0,0,1,1,3},
- {3,0,0,0,0,0,1,0,0,0,0,0,0,2,3,3},
- {3,0,1,0,0,0,0,0,1,0,0,0,0,0,0,3},
- {3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3}
+ ...
 };
+
+
+// STRUCTURE MONSTRE
 
 struct Monstre { int row; int col; };
-Monstre monstres[2]; //pour le niveau 3
+Monstre monstres[2]; // 2 monstres pour le niveau 3
 
-int playerCol = 1; int playerRow = 8; int steps = 0;
+// Position joueur + nombre de pas
+int playerCol = 1;
+int playerRow = 8;
+int steps = 0;
 
-void beep(int f){ if(soundOn) tone(BUZZER,f,80); }
 
+// FONCTIONS SON
+
+// Bip simple
+void beep(int f){
+ if(soundOn) tone(BUZZER,f,80);
+}
+
+// Musique victoire finale
 void playMarseillaise() {
- if(!soundOn) return;
- int melody[][2] = {
-  {392, 350}, {392, 150}, {523, 400}, {523, 400},
-  {587, 400}, {587, 400}, {784, 450}, {659, 250}, {523, 900}
- };
- for (int i = 0; i < 9; i++) {
-   tone(BUZZER, melody[i][0], melody[i][1]);
-   delay(melody[i][1] + 35); 
- }
+ ...
 }
 
+// Son victoire simple
 void playFunnyWin() {
- if(!soundOn) return;
- int jingle[][2] = {
-   {262, 100}, {330, 100}, {392, 100}, {523, 150}, 
-   {392, 100}, {523, 350}
- };
- for (int i = 0; i < 6; i++) {
-   tone(BUZZER, jingle[i][0], jingle[i][1]);
-   delay(jingle[i][1] + 20);
- }
+ ...
 }
 
+// Son défaite
 void loseSound(){
- if(!soundOn) return;
- int marioDeath[][2] = {
-   {494, 80},  {523, 80},  {587, 80},  {0, 80},     
-   {659, 120}, {698, 120}, {659, 120}, {0, 60},     
-   {494, 140}, {392, 140}, {0, 60},                 
-   {330, 200}, {440, 200}, {392, 400}               
- };
- for (int i = 0; i < 14; i++) {
-   if(marioDeath[i][0] == 0) {
-     delay(marioDeath[i][1]);
-   } else {
-     tone(BUZZER, marioDeath[i][0], marioDeath[i][1]);
-     delay(marioDeath[i][1] + 25);
-   }
- }
+ ...
 }
 
+
+// ACCES AUX CASES
+
+// Lire une case selon le niveau
 uint8_t getCell(int r,int c){
  if(level==1) return niveau1[r][c];
  if(level==2) return niveau2[r][c];
  return niveau3[r][c];
 }
 
+// Modifier une case (seulement niveaux modifiables)
 void setCell(int r, int c, uint8_t val){
  if(level==2) niveau2[r][c] = val;
  if(level==3) niveau3[r][c] = val;
 }
 
-void updateMonsters() {
- if(level != 3) return;
- int dRow[] = {-1, 1, 0, 0}; int dCol[] = {0, 0, -1, 1};
 
- for(int i = 0; i < 2; i++) { 
+// IA DES MONSTRES (niveau 3)
+
+void updateMonsters() {
+ if(level != 3) return; // uniquement niveau 3
+
+ // directions possibles (haut, bas, gauche, droite)
+ int dRow[] = {-1, 1, 0, 0};
+ int dCol[] = {0, 0, -1, 1};
+
+ for(int i = 0; i < 2; i++) {
+
+
    setCell(monstres[i].row, monstres[i].col, VIDE);
    drawCell(monstres[i].col, monstres[i].row);
-   int nRow = monstres[i].row; int nCol = monstres[i].col;
+
+   int nRow = monstres[i].row;
+   int nCol = monstres[i].col;
    bool bouge = false;
 
+   // 70% de chance de poursuivre le joueur
    if(random(0, 100) < 70) {
-     int cibleRowDir = (playerRow > monstres[i].row) ? 1 : (playerRow < monstres[i].row) ? -1 : 0;
-     int cibleColDir = (playerCol > monstres[i].col) ? 1 : (playerCol < monstres[i].col) ? -1 : 0;
 
+     // direction vers le joueur
+     int cibleRowDir = (playerRow > monstres[i].row) ? 1 :
+                       (playerRow < monstres[i].row) ? -1 : 0;
+
+     int cibleColDir = (playerCol > monstres[i].col) ? 1 :
+                       (playerCol < monstres[i].col) ? -1 : 0;
+
+     // déplacement prioritaire
      if(abs(playerRow - monstres[i].row) > abs(playerCol - monstres[i].col) && cibleRowDir != 0) {
        uint8_t c = getCell(monstres[i].row + cibleRowDir, monstres[i].col);
-       if(c == VIDE || (monstres[i].row + cibleRowDir == playerRow && monstres[i].col == playerCol)) { nRow = monstres[i].row + cibleRowDir; bouge = true; }
-     } else if(cibleColDir != 0) {
+
+       if(c == VIDE || (monstres[i].row + cibleRowDir == playerRow && monstres[i].col == playerCol)) {
+         nRow = monstres[i].row + cibleRowDir;
+         bouge = true;
+       }
+     } 
+     else if(cibleColDir != 0) {
        uint8_t c = getCell(monstres[i].row, monstres[i].col + cibleColDir);
-       if(c == VIDE || (monstres[i].row == playerRow && monstres[i].col + cibleColDir == playerCol)) { nCol = monstres[i].col + cibleColDir; bouge = true; }
+
+       if(c == VIDE || (monstres[i].row == playerRow && monstres[i].col + cibleColDir == playerCol)) {
+         nCol = monstres[i].col + cibleColDir;
+         bouge = true;
+       }
      }
    }
 
+
+   // déplacement aléatoire
    if(!bouge) {
      for(int essai = 0; essai < 10; essai++) {
-       int dir = random(0, 4); int testRow = monstres[i].row + dRow[dir]; int testCol = monstres[i].col + dCol[dir];
+       int dir = random(0, 4);
+       int testRow = monstres[i].row + dRow[dir];
+       int testCol = monstres[i].col + dCol[dir];
+
        uint8_t cible = getCell(testRow, testCol);
-       if(cible == VIDE || (testRow == playerRow && testCol == playerCol)) { nRow = testRow; nCol = testCol; break; }
+
+       if(cible == VIDE || (testRow == playerRow && testCol == playerCol)) {
+         nRow = testRow;
+         nCol = testCol;
+         break;
+       }
      }
    }
 
-   monstres[i].row = nRow; monstres[i].col = nCol;
+   // appliquer déplacement
+   monstres[i].row = nRow;
+   monstres[i].col = nCol;
+
    setCell(monstres[i].row, monstres[i].col, MONSTER);
    drawCell(monstres[i].col, monstres[i].row);
 
+   // collision joueur
    if(playerCol == monstres[i].col && playerRow == monstres[i].row){
-      vies = 0; drawHUD(); state = GAMEOVER; choiceSelection = 0; drawGameOverScreen(); return; 
+      vies = 0;
+      drawHUD();
+      state = GAMEOVER;
+      choiceSelection = 0;
+      drawGameOverScreen();
+      return; 
    }
  }
 }
 
+
+// AFFICHAGE (sprite monstre + cases)
+
+// Dessin pixelisé du monstre
 void drawMonsterSprite(int x, int y) {
-  uint16_t purple = ILI9341_MAGENTA; uint16_t white = ILI9341_WHITE;
-  tft.fillRect(x, y, CELL, CELL, ILI9341_BLUE); x += 2; y += 3;
-  tft.fillRect(x+2,  y,    2,  2, purple); tft.fillRect(x+12, y,    2,  2, purple);
-  tft.fillRect(x+4,  y+2,  8,  2, purple); tft.fillRect(x+2,  y+4,  12, 2, purple);
-  tft.fillRect(x,    y+6,  16, 2, purple); tft.fillRect(x,    y+8,  16, 2, purple);
-  tft.fillRect(x+2,  y+10, 12, 2, purple);
-  tft.fillRect(x,    y+12, 2,  2, purple); tft.fillRect(x+4,  y+12, 2,  2, purple);
-  tft.fillRect(x+10, y+12, 2,  2, purple); tft.fillRect(x+14, y+12, 2,  2, purple);
-  tft.fillRect(x+3,  y+4,  2,  2, white);  tft.fillRect(x+11, y+4,  2,  2, white);
+ ...
 }
 
+// Dessiner une case selon son type
 void drawCell(int c,int r){
  uint8_t t=getCell(r,c);
- if (t == MONSTER) { drawMonsterSprite(c*CELL, r*CELL+HUD_H); return; }
- uint16_t col = (t==MUR)?ILI9341_WHITE : (t==FLAG)?ILI9341_YELLOW : (t==SOL)?ILI9341_GREEN : ILI9341_BLUE;
+
+ if (t == MONSTER) {
+   drawMonsterSprite(c*CELL, r*CELL+HUD_H);
+   return;
+ }
+
+ // choisir couleur selon type
+ uint16_t col =
+   (t==MUR)?ILI9341_WHITE :
+   (t==FLAG)?ILI9341_YELLOW :
+   (t==SOL)?ILI9341_GREEN :
+             ILI9341_BLUE;
+
  tft.fillRect(c*CELL,r*CELL+HUD_H,CELL,CELL,col);
 }
 
-void drawMap(){ for(int r=0;r<ROWS;r++) for(int c=0;c<COLS;c++) drawCell(c,r); }
-void drawPlayer(){ tft.fillRect(playerCol*CELL+3,playerRow*CELL+HUD_H+3,14,14,ILI9341_RED); }
+// Dessine toute la carte
+void drawMap(){
+ for(int r=0;r<ROWS;r++)
+   for(int c=0;c<COLS;c++)
+     drawCell(c,r);
+}
 
+// Dessine le joueur
+void drawPlayer(){
+ tft.fillRect(playerCol*CELL+3,playerRow*CELL+HUD_H+3,14,14,ILI9341_RED);
+}
+
+
+// HUD (interface du haut)
+
+// Dessin cœur (vie)
 void drawHeart(int x, int y, uint16_t color) {
-  tft.fillRect(x+2, y,   3, 2, color); tft.fillRect(x+8, y,   3, 2, color);
-  tft.fillRect(x,   y+2, 13, 2, color); tft.fillRect(x,   y+4, 13, 2, color);
-  tft.fillRect(x+2, y+6, 9,  2, color); tft.fillRect(x+4, y+8, 5,  2, color); tft.fillRect(x+6, y+10, 1, 2, color);
+ ...
 }
 
+// Affichage HUD (vies + niveau + pas)
 void drawHUD(){
- tft.fillRect(0,0,320,HUD_H,ILI9341_BLACK);
- for(int i=0; i<3; i++) drawHeart(10 + (i * 20), 12, (i < vies)?ILI9341_RED:ILI9341_DARKGREY); 
- tft.setTextSize(2); tft.setTextColor(ILI9341_WHITE);
- tft.setCursor(85,10); tft.print("L"); tft.print(level);
- tft.setCursor(160,10); tft.print("PAS:"); tft.print(steps);
+ ...
 }
 
+
+// MENUS
+
+// Menu principal
 void drawMenu(){
- tft.fillScreen(ILI9341_BLACK);
- tft.drawRect(5, 5, 310, 230, ILI9341_CYAN);
- tft.setTextSize(4); tft.setTextColor(ILI9341_YELLOW); tft.setCursor(115, 35); tft.print("MENU");
- tft.fillRect(50, 80, 220, 3, ILI9341_CYAN);
- tft.setTextSize(2);
- tft.setCursor(50, 125);
- if(menuSelection == 0) { tft.setTextColor(ILI9341_RED); tft.print("> "); tft.setTextColor(ILI9341_GREEN); tft.print("JOUER"); } 
- else { tft.print("  "); tft.setTextColor(ILI9341_WHITE); tft.print("JOUER"); }
- tft.setCursor(50, 165);
- if(menuSelection == 1) { tft.setTextColor(ILI9341_RED); tft.print("> "); tft.setTextColor(ILI9341_GREEN); tft.print("PARAMETRES"); } 
- else { tft.print("  "); tft.setTextColor(ILI9341_WHITE); tft.print("PARAMETRES"); }
+ ...
 }
 
+// Menu paramètres
 void drawSettings(){
- tft.fillScreen(ILI9341_BLACK); tft.drawRect(5, 5, 310, 230, ILI9341_ORANGE);
- tft.setTextSize(3); tft.setTextColor(ILI9341_ORANGE); tft.setCursor(60, 40); tft.print("PARAMETRES");
- tft.setTextSize(2); tft.setTextColor(ILI9341_WHITE); tft.setCursor(80,120); tft.print("SON: "); tft.print(soundOn?"ON":"OFF");
+ ...
 }
+
+
+// INITIALISATION PARTIE
 
 void startGame(){
- playerCol=1; playerRow=8; steps=0; vies=3; 
- 
- // Configuration niveau 2
- if(level == 2) { niveau2[4][11] = MONSTER; } 
- 
- // Configuration niveau 3
- for(int r=0; r<ROWS; r++) for(int c=0; c<COLS; c++) if(niveau3[r][c] == MONSTER) niveau3[r][c] = VIDE;
- monstres[0].row = 1; monstres[0].col = 13; 
- monstres[1].row = 3; monstres[1].col = 8; 
- if (level == 3) { 
-   niveau3[monstres[0].row][monstres[0].col] = MONSTER; 
-   niveau3[monstres[1].row][monstres[1].col] = MONSTER; 
+ playerCol=1;
+ playerRow=8;
+ steps=0;
+ vies=3;
+
+ // monstre niveau 2
+ if(level == 2)
+   niveau2[4][11] = MONSTER;
+
+ // reset monstres niveau 3
+ for(int r=0; r<ROWS; r++)
+   for(int c=0; c<COLS; c++)
+     if(niveau3[r][c] == MONSTER)
+       niveau3[r][c] = VIDE;
+
+ // position initiale monstres
+ monstres[0].row = 1;
+ monstres[0].col = 13;
+ monstres[1].row = 3;
+ monstres[1].col = 8;
+
+ if (level == 3) {
+   niveau3[monstres[0].row][monstres[0].col] = MONSTER;
+   niveau3[monstres[1].row][monstres[1].col] = MONSTER;
  }
- 
- tft.fillScreen(ILI9341_BLUE); drawMap(); drawHUD(); drawPlayer();
+
+ tft.fillScreen(ILI9341_BLUE);
+ drawMap();
+ drawHUD();
+ drawPlayer();
 }
 
+
+// ECRANS FIN DE PARTIE
+
 void drawGameOverScreen() {
- tft.fillScreen(ILI9341_RED);
- tft.setCursor(52, 45); tft.setTextSize(4); tft.setTextColor(ILI9341_WHITE); tft.print("GAME OVER");
- loseSound(); 
- updateChoiceDisplay("REESSAYER");
+ ...
 }
 
 void drawWinScreen() {
- tft.fillScreen(ILI9341_GREEN);
- tft.setTextColor(ILI9341_WHITE);
- if(level == 3) {
-   tft.setTextSize(4); tft.setCursor(20, 35); tft.print("JEU FINI !");
-   tft.setTextSize(2); tft.setCursor(85, 90); tft.print("FELICITATIONS");
-   playMarseillaise(); 
- } else {
-   tft.setTextSize(4); tft.setCursor(88, 45); tft.print("GAGNE !");
-   playFunnyWin();     
- }
- updateChoiceDisplay((level == 3) ? "REJOUER" : "CONTINUER");
+ ...
 }
 
+// Mise à jour des choix (boutons)
 void updateChoiceDisplay(const char* actionText) {
- tft.fillRect(40, 135, 240, 85, ILI9341_BLACK);
- tft.drawRect(40, 135, 240, 85, ILI9341_WHITE);
- tft.setTextSize(2);
-
- tft.setCursor(65, 153);
- if(choiceSelection == 0) { tft.setTextColor(ILI9341_RED); tft.print("> "); tft.setTextColor(ILI9341_GREEN); tft.print(actionText); } 
- else { tft.print("  "); tft.setTextColor(ILI9341_WHITE); tft.print(actionText); }
-
- tft.setCursor(65, 188);
- if(choiceSelection == 1) { tft.setTextColor(ILI9341_RED); tft.print("> "); tft.setTextColor(ILI9341_GREEN); tft.print("MENU"); } 
- else { tft.print("  "); tft.setTextColor(ILI9341_WHITE); tft.print("MENU"); }
+ ...
 }
+
+
+// SETUP
 
 void setup(){
- randomSeed(analogRead(0));
- pinMode(BTN_RIGHT,INPUT_PULLUP); pinMode(BTN_LEFT,INPUT_PULLUP); pinMode(BTN_UP,INPUT_PULLUP); pinMode(BTN_DOWN,INPUT_PULLUP); pinMode(BUZZER,OUTPUT);
- tft.begin(); tft.setRotation(1);
- drawMenu(); playMarseillaise(); 
+ randomSeed(analogRead(0)); // initialisation aléatoire
+
+ // configuration boutons + buzzer
+ pinMode(BTN_RIGHT,INPUT_PULLUP);
+ pinMode(BTN_LEFT,INPUT_PULLUP);
+ pinMode(BTN_UP,INPUT_PULLUP);
+ pinMode(BTN_DOWN,INPUT_PULLUP);
+ pinMode(BUZZER,OUTPUT);
+
+ // initialisation écran
+ tft.begin();
+ tft.setRotation(1);
+
+ drawMenu();
+ playMarseillaise();
 }
 
+
+// BOUCLE PRINCIPALE
+
 void loop(){
+
+  // MENU 
   if(state==MENU){
-    if(digitalRead(BTN_UP)==LOW && menuSelection == 1){ menuSelection = 0; drawMenu(); beep(600); delay(200); }
-    if(digitalRead(BTN_DOWN)==LOW && menuSelection == 0){ menuSelection = 1; drawMenu(); beep(600); delay(200); }
-    if(digitalRead(BTN_RIGHT)==LOW){
-      beep(800);
-      if(menuSelection == 0) { level=1; state=GAME; startGame(); } else { state=SETTINGS; drawSettings(); }
-      delay(250);
-    }
+    ...
   }
 
+  // PARAMETRES
   else if(state==SETTINGS){
-    if(digitalRead(BTN_UP)==LOW){ soundOn=!soundOn; drawSettings(); delay(200); }
-    if(digitalRead(BTN_DOWN)==LOW){ state=MENU; drawMenu(); delay(200); }
+    ...
   }
 
+  // GAME OVER / WIN
   else if(state==GAMEOVER || state==WIN) {
-    if(digitalRead(BTN_UP)==LOW && choiceSelection == 1) { choiceSelection = 0; updateChoiceDisplay((state==GAMEOVER)? "REESSAYER" : ((level==3)?"REJOUER":"CONTINUER")); beep(600); delay(200); }
-    if(digitalRead(BTN_DOWN)==LOW && choiceSelection == 0) { choiceSelection = 1; updateChoiceDisplay((state==GAMEOVER)? "REESSAYER" : ((level==3)?"REJOUER":"CONTINUER")); beep(600); delay(200); }
-    
-    if(digitalRead(BTN_RIGHT)==LOW) {
-      beep(800);
-      if(choiceSelection == 1) { 
-        state = MENU; menuSelection = 0; drawMenu();
-      } else { 
-        if(state == GAMEOVER) { startGame(); state = GAME; } 
-        else { 
-          if(level == 1) { level = 2; startGame(); state = GAME; } 
-          else if(level == 2) { level = 3; startGame(); state = GAME; } 
-          else { level = 1; startGame(); state = GAME; } 
-        }
-      }
-      delay(250);
-    }
+    ...
   }
 
+  //  JEU
   else if(state==GAME){
-    int nc=playerCol; int nr=playerRow;
-    if(digitalRead(BTN_RIGHT)==LOW) nc++; else if(digitalRead(BTN_LEFT)==LOW) nc--; else if(digitalRead(BTN_UP)==LOW) nr--; else if(digitalRead(BTN_DOWN)==LOW) nr++;
-
-    if(nc!=playerCol || nr!=playerRow){
-      uint8_t dest=getCell(nr,nc);
-
-      if(dest==MONSTER){
-        vies = 0; drawHUD(); state=GAMEOVER; choiceSelection = 0; drawGameOverScreen(); return;
-      }
-      if(dest==MUR){
-        vies--; beep(200); drawHUD(); 
-        if(vies <= 0){ state=GAMEOVER; choiceSelection = 0; drawGameOverScreen(); }
-        delay(200); return; 
-      }
-      if(dest==SOL){ beep(200); delay(150); return; }
-
-      if(dest!=MUR && dest!=SOL){
-        drawCell(playerCol,playerRow); playerCol=nc; playerRow=nr; steps++;
-        
-        // deplacement monstres niveau 3
-        if(level == 3 && steps % 2 == 0) updateMonsters();
-
-        if(state == GAME && getCell(playerRow, playerCol) == MONSTER) {
-          vies = 0; drawHUD(); state=GAMEOVER; choiceSelection = 0; drawGameOverScreen(); return;
-        }
-
-        drawPlayer(); drawHUD(); beep(900);
-
-        if(dest==FLAG){
-          state = WIN; choiceSelection = 0; drawWinScreen();
-        }
-      }
-    }
-    delay(120);
+    ...
   }
 }
